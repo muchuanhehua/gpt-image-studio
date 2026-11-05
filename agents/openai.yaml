@@ -1,0 +1,4 @@
+interface:
+  display_name: "GPT 生图工作室"
+  short_description: "在 Codex 中完成 GPT 生图、参考图提炼与项目图片分类命名"
+  default_prompt: "使用 $gpt-image-studio，根据我的需求创作图片，并整理参考图与创作文件。"
