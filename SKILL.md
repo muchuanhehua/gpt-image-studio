@@ -32,7 +32,7 @@ description: "在 Codex 中使用 GPT 生图、改图，提炼参考图的画风
 
 ## 按需读取
 
-- 提炼或整理图片：[图片参考与归档](references/images.md)。
+- 提炼或整理图片：按[图片参考与归档](references/images.md)将指定的可见特征转写为可直接用于 GPT Image 的提示词片段。
 - 写提示词、生图、改图：[创作与反馈](references/creation.md)。
 - 保存或修改通用系列：[系列模板](references/series-template.md)。
 - 保存或修改通用画风：[画风模板](references/style-template.md)。
