@@ -1,6 +1,7 @@
-"""Compose a submitted prompt without rewriting preset bodies.
+"""Compose a prompt from image roles, brief style cues, and content presets.
 
-Read task, design, images[{path, role}], and optional style_settings as JSON on stdin.
+Read task, design, images[{path, role}], and optional style{references, highlights}
+as JSON on stdin. Style observation notes are never copied into the prompt.
 Paths are resolved relative to the current workspace. Never overwrite an output.
 """
 
@@ -32,9 +33,36 @@ def preset_body(path):
     return required_text(text, f"preset body: {path}")
 
 
+def style_block(value, image_count):
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("style must contain references and optional highlights")
+    references = value.get("references")
+    if not isinstance(references, list) or not references:
+        raise ValueError("style.references must be a non-empty array of image numbers")
+    if any(type(number) is not int or not 1 <= number <= image_count
+           for number in references):
+        raise ValueError("style.references must identify existing images by 1-based number")
+    if len(set(references)) != len(references):
+        raise ValueError("style.references must not repeat image numbers")
+    highlights = value.get("highlights", [])
+    if not isinstance(highlights, list):
+        raise ValueError("style.highlights must be an array of brief visible traits")
+    highlights = [required_text(item, "style.highlights item") for item in highlights]
+    reference_labels = "、".join(f"图{number}" for number in references)
+    instruction = f"模仿{reference_labels}的画风，按参考图分工采用整体与局部画法。"
+    if highlights:
+        instruction += "\n重点保留：" + "；".join(highlights) + "。"
+    return instruction
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--style", type=Path)
+    parser.add_argument(
+        "--style-notes", "--style", dest="style_notes", type=Path,
+        help="Observation notes: verify the file without copying its contents.",
+    )
     parser.add_argument("--series", action="append", type=Path, default=[])
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -42,6 +70,8 @@ def main():
     spec = json.load(sys.stdin)
     if not isinstance(spec, dict):
         raise ValueError("Input must be a JSON object")
+    if "style_settings" in spec:
+        raise ValueError("Use style.highlights instead of style_settings; attach style references")
     task = required_text(spec.get("task"), "task")
     design = required_text(spec.get("design"), "design")
     images = spec.get("images", [])
@@ -59,14 +89,12 @@ def main():
     sections = [f"任务\n{task}"]
     if roles:
         sections.append("参考图分工\n" + "\n".join(roles))
-    style = preset_body(args.style) if args.style else None
+    style = style_block(spec.get("style"), len(paths))
+    style_notes = existing_file(args.style_notes) if args.style_notes else None
+    if style_notes and not style:
+        raise ValueError("--style-notes requires style.references pointing to attached images")
     if style:
         sections.append("画风\n" + style)
-    settings = spec.get("style_settings")
-    if settings is not None:
-        if not style:
-            raise ValueError("style_settings requires --style")
-        sections.append("本次画风设置\n" + required_text(settings, "style_settings"))
     for path in args.series:
         sections.append("内容系列\n" + preset_body(path))
     sections.append("本次设计与约束\n" + design)
@@ -75,11 +103,14 @@ def main():
     output = args.output.expanduser().resolve()
     with output.open("x", encoding="utf-8", newline="\n") as handle:
         handle.write(prompt)
-    print(json.dumps({
+    result = {
         "prompt_file": str(output),
         "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
         "referenced_image_paths": paths,
-    }, ensure_ascii=False))
+    }
+    if style_notes:
+        result["style_notes_file"] = str(style_notes)
+    print(json.dumps(result, ensure_ascii=False))
 
 
 if __name__ == "__main__":
