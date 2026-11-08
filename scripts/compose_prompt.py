@@ -1,4 +1,4 @@
-"""Compose a prompt from image roles, brief style cues, and content presets.
+"""Compose a prompt from this task's design, image roles, and brief style cues.
 
 Read task, design, images[{path, role}], and optional style{references, highlights}
 as JSON on stdin. Style observation notes are never copied into the prompt.
@@ -23,14 +23,6 @@ def existing_file(value):
     if not path.is_file():
         raise ValueError(f"Not a file: {path}")
     return path
-
-
-def preset_body(path):
-    text = existing_file(path).read_text(encoding="utf-8-sig")
-    lines = text.splitlines(keepends=True)
-    if lines and lines[0].startswith("# "):
-        text = "".join(lines[1:])
-    return required_text(text, f"preset body: {path}")
 
 
 def style_block(value, image_count):
@@ -63,7 +55,6 @@ def main():
         "--style-notes", "--style", dest="style_notes", type=Path,
         help="Observation notes: verify the file without copying its contents.",
     )
-    parser.add_argument("--series", action="append", type=Path, default=[])
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
@@ -95,8 +86,6 @@ def main():
         raise ValueError("--style-notes requires style.references pointing to attached images")
     if style:
         sections.append("画风\n" + style)
-    for path in args.series:
-        sections.append("内容系列\n" + preset_body(path))
     sections.append("本次设计与约束\n" + design)
     prompt = "\n\n".join(sections) + "\n"
 

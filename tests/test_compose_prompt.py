@@ -24,9 +24,6 @@ class ComposePromptTests(unittest.TestCase):
             self.images.append(path)
         self.notes = self.root / "画风观察.md"
         self.notes.write_text("# 画风\nPRIVATE_ANALYSIS_MUST_STAY_OUT\n", encoding="utf-8")
-        self.series = self.root / "内容系列.md"
-        self.series_body = "窗边站立，手持一束蓝色花朵。\n保留完整人物剪影。"
-        self.series.write_text("# 内容系列标题\n\n" + self.series_body, encoding="utf-8")
         self.output = self.root / "实际提示词.txt"
         self.spec = {
             "task": "修改服装，保留人物身份和构图。",
@@ -38,12 +35,11 @@ class ComposePromptTests(unittest.TestCase):
             "design": "只调整衣袖。",
         }
 
-    def compose(self, spec=None, notes_flag="--style-notes", with_series=False):
+    def compose(self, spec=None, notes_flag="--style-notes", extra_args=()):
         command = [sys.executable, "-B", "-X", "utf8", str(SCRIPT), "--output", str(self.output)]
         if notes_flag:
             command.extend((notes_flag, str(self.notes)))
-        if with_series:
-            command.extend(("--series", str(self.series)))
+        command.extend(extra_args)
         return subprocess.run(
             command, input=json.dumps(self.spec if spec is None else spec, ensure_ascii=False),
             cwd=self.root, text=True, encoding="utf-8", capture_output=True,
@@ -73,14 +69,18 @@ class ComposePromptTests(unittest.TestCase):
         self.assertNotIn("style_notes_file", metadata)
         self.assertIn("模仿图2", prompt)
 
-    def test_content_series_keeps_its_body(self):
-        _, prompt = self.result(self.compose(with_series=True))
-        self.assertIn(self.series_body, prompt)
-        self.assertNotIn("内容系列标题", prompt)
-        self.assertNotIn("PRIVATE_ANALYSIS_MUST_STAY_OUT", prompt)
+    def test_removed_series_option_cannot_load_a_preset(self):
+        old_preset = self.root / "停用预设.md"
+        old_preset.write_text("UNREQUESTED_PRESET_MUST_STAY_OUT", encoding="utf-8")
+        process = self.compose(extra_args=("--series", str(old_preset)))
+        self.assertNotEqual(process.returncode, 0)
+        self.assertFalse(self.output.exists())
 
-    def test_task_without_style_or_images_still_works(self):
-        spec = {"task": "生成一张海报。", "design": "中央放置蓝色花朵。"}
+    def test_frame_and_motif_need_no_reference_images(self):
+        spec = {
+            "task": "生成一张婚纱插画。",
+            "design": "细线拱形边框，下角白玫瑰，顶部中央画一个简洁水滴线描图案。",
+        }
         metadata, prompt = self.result(self.compose(spec, notes_flag=None))
         self.assertEqual(metadata["referenced_image_paths"], [])
         self.assertIn(spec["design"], prompt)
