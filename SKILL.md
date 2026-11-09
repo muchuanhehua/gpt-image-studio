@@ -35,7 +35,7 @@ description: "在 Codex 中使用 GPT 生图、改图，提炼参考图的画风
 ## 按需读取
 
 - 提炼或整理图片：按[图片参考与归档](references/images.md)观察指定特征，区分生图所需的简短指令与详细观察记录。
-- 写提示词、生图、改图：[创作与反馈](references/creation.md)；需自主构思时，按其中的[设计发散与收敛](references/creation.md#设计发散与收敛)执行。
+- 写提示词、生图、改图：[创作与反馈](references/creation.md)；主要内容已定时直接组织并执行，需要原创造型或方向选择时再按其中的[设计发散与收敛](references/creation.md#设计发散与收敛)执行。
 - 保存或修改通用画风：[画风模板](references/style-template.md)。
 
 按上述会话边界，只读取本次需要的资料和明确指定的已有条目。
